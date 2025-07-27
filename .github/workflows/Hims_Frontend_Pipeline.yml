@@ -1,4 +1,5 @@
 name: Hims_Frontend_Pipeline
+
 on:
   push:
     branches:
@@ -11,6 +12,7 @@ jobs:
   buildTest:
     name: Build
     runs-on: self-hosted
+
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -27,9 +29,10 @@ jobs:
 
       - name: Deploy to /var/www/HMIS-dev/
         run: |
+          cd ~
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rm -rf /var/www/HMIS-dev
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S mkdir -p /var/www/HMIS-dev
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rsync -aq --delete .next node_modules public package.json /var/www/HMIS-dev/
+          rsync -aq --delete .next node_modules public package.json /var/www/HMIS-dev/
 
       - name: Run the project on background process
         run: |
