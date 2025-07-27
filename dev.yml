@@ -8,7 +8,7 @@ on:
 jobs:
   buildTest:
     name: Build
-    runs-on: self-hosted
+runs-on: [self-hosted, ubuntu]
     steps:
       - name: Clone repository
         uses: actions/checkout@v4 # Fixed typo and updated to latest version
