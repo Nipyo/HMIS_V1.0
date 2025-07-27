@@ -5,12 +5,12 @@ import MedicalNav from "../Home/components/MedicalNav"
 
 
 const galleryImages = [
-  { src: "/gallery/img1.jpg", alt: "Hospital interior" },
-  { src: "/gallery/img2.jpg", alt: "Patient room" },
-  { src: "/gallery/img3.jpg", alt: "Surgery room" },
+  { src: "/gallery/img1.jpg", alt: "Medical interior" },
+  { src: "/gallery/img2.jpg", alt: "Consultation room" },
+  { src: "/gallery/img3.jpg", alt: "Doctor room" },
   { src: "/gallery/img4.jpg", alt: "Reception area" },
   { src: "/gallery/img5.jpg", alt: "Medical staff" },
-  { src: "/gallery/img6.jpg", alt: "Ambulance bay" },
+  { src: "/gallery/img6.jpg", alt: "Biometrics" },
 ]
 
 export default function GalleryPage() {
