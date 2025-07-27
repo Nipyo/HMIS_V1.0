@@ -1,4 +1,5 @@
 name: Hims_Frontend_Pipeline
+
 on:
   push:
     branches:
@@ -18,28 +19,33 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          echo "Running Installing Dependencies..."
+          echo "Installing dependencies with bun..."
           bun install
 
       - name: Run Build Script
         run: |
-          echo "Running build script..."
+          echo "Building the project..."
           bun run build
 
       - name: Deploy to /var/www/HMIS-dev/
         run: |
-          cd ~
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rm -rf /var/www/HMIS-dev
           echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S mkdir -p /var/www/HMIS-dev
-          rsync -aq --delete .next node_modules public package.json /var/www/HMIS-dev/
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S rsync -aq --delete .next node_modules public package.json /var/www/HMIS-dev/
+        env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
 
-      - name: Run the project on background process
+      - name: Run the project with PM2
         run: |
+          echo "Restarting or starting app with PM2..."
+          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S pm2 startup
           cd /var/www/HMIS-dev
           if pm2 list | grep -q "nippon-app"; then
             pm2 restart nippon-app
           else
             pm2 start bun --name "nippon-app" -- start
           fi
+          pm2 save
         env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
           CI: true
