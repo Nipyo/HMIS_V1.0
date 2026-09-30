@@ -63,11 +63,12 @@ export default function AboutPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <TeamMember
-            name="Dr. Anuj Shrestha"
-            position="Orthopaedics, MBBS, Nepal"
-            image="/DrAnujshrestha.png?height=300&width=300"
-            bio="Dr. Shrestha has over 20 years of experience in orthopaedics medicine and has specialized in visa medical examinations for the past few decades."
-          />
+  name="Dr. Anuj Shrestha"
+  position="Orthopaedics, MBBS, Nepal"
+  image="/DrAnujshrestha.png"
+  bio="Dr. Shrestha has over 20 years of experience in orthopaedics medicine and has specialized in visa medical examinations for the past few decades."
+/>
+
           <TeamMember
             name="Dr. Sudhar Prasad Adhikari"
             position="Senior Radiologist and Ultrasonologist"
