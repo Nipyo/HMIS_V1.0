@@ -10,9 +10,8 @@ import {
   User,
   FileText,
   Clock,
-  Badge,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
@@ -28,55 +27,79 @@ type Booking = {
   passportIssueDate: string;
   passportExpiryDate: string;
   gender: string;
-  age: string;
+  age: number | string | null;
   status: string;
   createdAt: string;
   doctor: string;
   department: string;
 };
 
-export default function BookingDetails({ params }: { params: { id: string } }) {
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "https://backendofmedical-2.onrender.com";
+
+const STATUS_STYLES: Record<string, string> = {
+  confirmed: "bg-green-500",
+  pending: "bg-yellow-500",
+  cancelled: "bg-red-500",
+  completed: "bg-blue-500",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const color = STATUS_STYLES[status] ?? "bg-gray-500";
+  return (
+    <span
+      className={`inline-block rounded-full px-3 py-1 text-xs font-medium text-white capitalize ${color}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+export default function BookingDetails() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        const res = await fetch(
-          `https://api.nippon-medical.com/api/Booking/${params.id}`
-        );
-        console.log({ res });
-        if (!res.ok) throw new Error("Failed to fetch booking");
-        const data = await res.json();
-        setBooking(data);
-      } catch (error) {
-        console.error(error);
+        // token is saved after logging in via POST /api/auth/token
+        const token = localStorage.getItem("adminToken");
+        const res = await fetch(`${API_URL}/api/Booking/${id}`, {
+          headers: token ? { Authorization: `Token ${token}` } : {},
+        });
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Please log in to view this booking.");
+        }
+        if (res.status === 404) throw new Error("Booking not found.");
+        if (!res.ok) throw new Error("Failed to fetch booking.");
+        setBooking(await res.json());
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchBooking();
-  }, [params.id]);
+  }, [id]);
 
   if (loading) return <p>Loading booking details...</p>;
-  if (!booking) return <p>Booking not found.</p>;
+  if (error || !booking) return <p>{error ?? "Booking not found."}</p>;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return <Badge className="bg-green-500 text-white">Confirmed</Badge>;
-      case "pending":
-        return <Badge className="bg-yellow-500 text-white">Pending</Badge>;
-      case "cancelled":
-        return <Badge className="bg-red-500 text-white">Cancelled</Badge>;
-      case "completed":
-        return <Badge className="bg-blue-500 text-white">Completed</Badge>;
-      default:
-        return <Badge className="bg-gray-500 text-white">{status}</Badge>;
-    }
-  };
+  const appt = new Date(booking.appointmentDate);
+  const apptDate = appt.toLocaleDateString(undefined, {
+    weekday: "short",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const apptTime = appt.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="space-y-6">
@@ -90,7 +113,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => router.push(`/bookings/${params.id}/edit`)}
+            onClick={() => router.push(`/bookings/${id}/edit`)}
           >
             <Edit2 className="h-4 w-4 mr-2" />
             Edit Booking
@@ -107,7 +130,9 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-gray-500">Status</p>
-                <div>{getStatusBadge(booking.status)}</div>
+                <div>
+                  <StatusBadge status={booking.status} />
+                </div>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-gray-500">Appointment ID</p>
@@ -117,23 +142,23 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
                 <p className="text-sm text-gray-500">Appointment Date</p>
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                  <p className="font-medium">{booking.appointmentDate}</p>
+                  <p className="font-medium">{apptDate}</p>
                 </div>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-gray-500">Appointment Time</p>
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                  <p className="font-medium">{booking.appointmentDate}</p>
+                  <p className="font-medium">{apptTime}</p>
                 </div>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-gray-500">Doctor</p>
-                <p className="font-medium">{booking.doctor}</p>
+                <p className="font-medium">{booking.doctor || "-"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-gray-500">Department</p>
-                <p className="font-medium">{booking.department}</p>
+                <p className="font-medium">{booking.department || "-"}</p>
               </div>
               <div className="space-y-1 md:col-span-2">
                 <p className="text-sm text-gray-500">Message</p>
@@ -175,10 +200,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
               <p className="text-sm text-gray-500">Date of Birth</p>
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                <p className="font-medium">
-                  {/* {format(booking.dateOfBirth, "PPP")} */}
-                  {booking.dateOfBirth}
-                </p>
+                <p className="font-medium">{booking.dateOfBirth}</p>
               </div>
             </div>
             <div className="space-y-1">
@@ -187,7 +209,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-500">Age</p>
-              <p className="font-medium">{booking.age}</p>
+              <p className="font-medium">{booking.age ?? "-"}</p>
             </div>
           </CardContent>
         </Card>

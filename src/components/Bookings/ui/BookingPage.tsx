@@ -58,6 +58,7 @@ export default function EnhancedBookingPage() {
     passportNumber: "",
     passportIssueDate: "",
     passportExpiryDate: "",
+    
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
@@ -150,34 +151,47 @@ const handleSubmit = async (e: React.FormEvent) => {
       if (!dateStr) return undefined;
       return new Date(dateStr).toISOString();
     };
+const payload = {
+  fullName: formData.fullName,
+  email: formData.email,
+  dateOfBirth: formData.dateOfBirth,
+  appointmentDate: formData.appointmentDate,
+  message: formData.message || "",
+  phoneNumber: formData.phoneNumber,
+  passportNumber: formData.passportNumber,
+  passportIssueDate: formData.passportIssueDate,
+  passportExpiryDate: formData.passportExpiryDate,
+  gender: formData.gender,
+  age: formData.age ? Number(formData.age) : null,
+  doctor: formData.doctor || "",
+  department: formData.department || "",
+};
 
-    const payload = {
-      fullName: formData.fullName,
-      email: formData.email,
-      dob: formatDate(formData.dateOfBirth),
-      appointmentDate: formatDate(formData.appointmentDate),
-      message: formData.message,
-      passportNo: formData.passportNumber || undefined,
-       issueDate: formatDate(formData.passportIssueDate || ""),
-        expiryDate: formatDate(formData.passportExpiryDate || ""),
-      gender: formData.gender,
-    };
 
     const response = await fetch(
-      "https://api.nippon-medical.com/api/Booking/create",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          accept: "*/*",
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+  "https://backendofmedical-2.onrender.com/api/Booking",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  }
+);
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
+
+   if (!response.ok) {
+  const responseText = await response.text();
+
+  console.error("Django API status:", response.status);
+  console.error("Django API response:", responseText);
+
+  throw new Error(
+    `API error: ${response.status} ${responseText}`
+  );
+}
+
 
     const result = await response.json();
     const bookingId = result.id || Math.random().toString(36).substr(2, 9);

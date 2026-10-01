@@ -27,7 +27,7 @@ export default function MedicalNav() {
     { name: "Services", path: PATH.OUR_SERVICES_PATH },
     { name: "Blog", path: PATH.BLOG_PATH },
     { name: "Gallery", path: PATH.GALLERY_PATH },
-    { name: "Contact", path: PATH.CONTACT_PATH },
+    
   ];
 
   return (

@@ -93,7 +93,7 @@ export default function BookingsTable() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch("https://api.nippon-medical.com/api/Booking/getall")
+        const response = await fetch("https://backendofmedical-2.onrender.com/api/Booking")
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
