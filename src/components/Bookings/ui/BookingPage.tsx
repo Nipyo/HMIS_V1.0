@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from "react";
@@ -12,7 +13,11 @@ import {
   ChevronDown,
   CheckCircle,
   XCircle,
+  Stethoscope,
+  Building2,
+  Hash,
 } from "lucide-react";
+
 import { Label } from "../../ui/label";
 import {
   Select,
@@ -21,13 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import MedicalNav from "@/components/Home/components/MedicalNav";
-
 
 interface BookingFormData {
   fullName: string;
@@ -39,714 +48,860 @@ interface BookingFormData {
   appointmentTime: string;
   serviceType: string;
   message: string;
-  passportNumber?: string;
-  passportIssueDate?: string;
-  passportExpiryDate?: string;
+  passportNumber: string;
+  passportIssueDate: string;
+  passportExpiryDate: string;
+  age: number | string | null;
+  doctor: string;
+  department: string;
+}
+
+interface SubmitStatus {
+  success: boolean;
+  message: string;
+  bookingId?: string;
+}
+
+interface BookingApiResponse {
+  id?: string | number;
+  detail?: string;
+  message?: string;
+}
+
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://backendofmedical-2.onrender.com"
+).replace(/\/+$/, "");
+
+const INITIAL_FORM_DATA: BookingFormData = {
+  fullName: "",
+  email: "",
+  phoneNumber: "",
+  dateOfBirth: "",
+  gender: "",
+  appointmentDate: "",
+  appointmentTime: "",
+  serviceType: "",
+  message: "",
+  passportNumber: "",
+  passportIssueDate: "",
+  passportExpiryDate: "",
+  age: "",
+  doctor: "",
+  department: "",
+};
+
+const INPUT_CLASS =
+  "h-12 border-2 border-gray-200 bg-white transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+
+function getTodayLocalDate(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 export default function EnhancedBookingPage() {
-  const [formData, setFormData] = useState<BookingFormData>({
-    fullName: "",
-    email: "",
-    phoneNumber: "",
-    dateOfBirth: "",
-    gender: "",
-    appointmentDate: "",
-    appointmentTime: "",
-    serviceType: "",
-    message: "",
-    passportNumber: "",
-    passportIssueDate: "",
-    passportExpiryDate: "",
-    
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<{
-    success: boolean;
-    message: string;
-    bookingId?: string;
-  } | null>(null);
+  const [formData, setFormData] =
+    useState<BookingFormData>(INITIAL_FORM_DATA);
 
-  const handleInputChange = (field: keyof BookingFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] =
+    useState<SubmitStatus | null>(null);
+
+  const handleInputChange = (
+    field: keyof BookingFormData,
+    value: string
+  ) => {
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
   };
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setIsSubmitting(true);
-  //   setSubmitStatus(null);
+  const handleSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
 
-  //   try {
-  //     // Helper function to convert date to ISO 8601 format with Z suffix
-  //     const formatDate = (dateStr: string) => {
-  //       return dateStr
-  //         ? new Date(dateStr).toISOString().split(".")[0] + "Z"
-  //         : undefined;
-  //     };
+    if (isSubmitting) return;
 
-  //     const payload = {
-  //       fullName: formData.fullName,
-  //       email: formData.email,
-  //       dob: formatDate(formData.dateOfBirth),
-  //       appointmentDate: formatDate(formData.appointmentDate),
-  //       message: formData.message,
-  //       passportNo: formData.passportNumber || undefined,
-  //       issueDate: formatDate(formData.passportIssueDate || ""),
-  //       expiryDate: formatDate(formData.passportExpiryDate || ""),
-  //       gender: formData.gender,
-  //     };
+    setIsSubmitting(true);
+    setSubmitStatus(null);
 
-  //     const response = await fetch(
-  //       "https://api.nippon-medical.com/api/Booking/create",
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           accept: "*/*",
-  //         },
-  //         body: JSON.stringify(payload),
-  //       }
-  //     );
+    try {
+      if (
+        !formData.appointmentDate ||
+        !formData.appointmentTime
+      ) {
+        throw new Error(
+          "Please select an appointment date and time."
+        );
+      }
 
-  //     if (!response.ok) {
-  //       throw new Error(`API error: ${response.status}`);
-  //     }
+      if (
+        formData.appointmentDate < getTodayLocalDate()
+      ) {
+        throw new Error(
+          "Please select today or a future appointment date."
+        );
+      }
 
-  //     const result = await response.json();
-  //     const bookingId = result.id || Math.random().toString(36).substr(2, 9);
+      if (
+        formData.dateOfBirth &&
+        formData.dateOfBirth > getTodayLocalDate()
+      ) {
+        throw new Error(
+          "Date of birth cannot be in the future."
+        );
+      }
 
-  //     const bookingData = {
-  //       id: bookingId,
-  //       ...formData,
-  //       status: "confirmed",
-  //       createdAt: new Date().toISOString(),
-  //     };
+      if (
+        formData.passportIssueDate &&
+        formData.passportExpiryDate &&
+        formData.passportExpiryDate <
+          formData.passportIssueDate
+      ) {
+        throw new Error(
+          "Passport expiry date cannot be before its issue date."
+        );
+      }
 
-  //     localStorage.setItem(`booking_${bookingId}`, JSON.stringify(bookingData));
+      const appointmentDateTime = new Date(
+        `${formData.appointmentDate}T${formData.appointmentTime}:00`
+      );
 
-  //     setSubmitStatus({
-  //       success: true,
-  //       message: "Your appointment has been booked successfully!",
-  //       bookingId: bookingId,
-  //     });
+      if (
+        Number.isNaN(appointmentDateTime.getTime())
+      ) {
+        throw new Error(
+          "Please select a valid appointment date and time."
+        );
+      }
 
-  //   } catch (error) {
-  //     console.error("Booking submission failed:", error);
-  //     setSubmitStatus({
-  //       success: false,
-  //       message: "Failed to book appointment. Please try again later.",
-  //     });
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsSubmitting(true);
-  setSubmitStatus(null);
+      const parsedAge =
+        formData.age === "" || formData.age === null
+          ? null
+          : Number(formData.age);
 
-  try {
-    // Helper function to convert date to ISO 8601 format with milliseconds and Z suffix
-    const formatDate = (dateStr: string) => {
-      if (!dateStr) return undefined;
-      return new Date(dateStr).toISOString();
-    };
-const payload = {
-  fullName: formData.fullName,
-  email: formData.email,
-  dateOfBirth: formData.dateOfBirth,
-  appointmentDate: formData.appointmentDate,
-  message: formData.message || "",
-  phoneNumber: formData.phoneNumber,
-  passportNumber: formData.passportNumber,
-  passportIssueDate: formData.passportIssueDate,
-  passportExpiryDate: formData.passportExpiryDate,
-  gender: formData.gender,
-  age: formData.age ? Number(formData.age) : null,
-  doctor: formData.doctor || "",
-  department: formData.department || "",
-};
+      if (
+        parsedAge !== null &&
+        (!Number.isInteger(parsedAge) ||
+          parsedAge < 0 ||
+          parsedAge > 150)
+      ) {
+        throw new Error(
+          "Please enter a valid age between 0 and 150."
+        );
+      }
 
+      const payload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        appointmentDate: appointmentDateTime.toISOString(),
+        message: formData.message.trim(),
+        passportNumber: formData.passportNumber.trim(),
+        passportIssueDate:
+          formData.passportIssueDate || null,
+        passportExpiryDate:
+          formData.passportExpiryDate || null,
+        gender: formData.gender,
+        age: parsedAge,
+        doctor: formData.doctor.trim(),
+        department: formData.department.trim(),
+        serviceType: formData.serviceType,
+      };
 
-    const response = await fetch(
-  "https://backendofmedical-2.onrender.com/api/Booking",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  }
-);
+      const response = await fetch(
+        `${API_URL}/api/Booking`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
+      const responseText = await response.text();
 
-   if (!response.ok) {
-  const responseText = await response.text();
+      let result: BookingApiResponse = {};
 
-  console.error("Django API status:", response.status);
-  console.error("Django API response:", responseText);
+      if (responseText) {
+        try {
+          result = JSON.parse(
+            responseText
+          ) as BookingApiResponse;
+        } catch {
+          if (response.ok) {
+            throw new Error(
+              "The server returned an invalid response. Please contact support if your booking was submitted."
+            );
+          }
 
-  throw new Error(
-    `API error: ${response.status} ${responseText}`
-  );
-}
+          throw new Error(
+            `Booking request failed (HTTP ${response.status}). Please try again.`
+          );
+        }
+      }
 
+      if (!response.ok) {
+        const serverMessage =
+          result.detail || result.message;
 
-    const result = await response.json();
-    const bookingId = result.id || Math.random().toString(36).substr(2, 9);
+        throw new Error(
+          typeof serverMessage === "string"
+            ? serverMessage
+            : `Booking failed (HTTP ${response.status}). Please check your information and try again.`
+        );
+      }
 
-    const bookingData = {
-      id: bookingId,
-      ...formData,
-      status: "confirmed",
-      createdAt: new Date().toISOString(),
-    };
+      const bookingId =
+        result.id !== undefined && result.id !== null
+          ? String(result.id)
+          : undefined;
 
-    localStorage.setItem(`booking_${bookingId}`, JSON.stringify(bookingData));
+      setSubmitStatus({
+        success: true,
+        message:
+          "Your appointment has been booked successfully!",
+        bookingId,
+      });
 
-    setSubmitStatus({
-      success: true,
-      message: "Your appointment has been booked successfully!",
-      bookingId: bookingId,
-    });
+      // Reset the form after successful submission.
+      setFormData({ ...INITIAL_FORM_DATA });
+    } catch (error) {
+      console.error(
+        "Booking submission failed:",
+        error
+      );
 
-  } catch (error) {
-    console.error("Booking submission failed:", error);
-    setSubmitStatus({
-      success: false,
-      message: "Failed to book appointment. Please try again later.",
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      setSubmitStatus({
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to book your appointment. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusReset = () => {
+    setSubmitStatus(null);
+  };
+
   return (
-    
-     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Add MedicalNav here */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8 md:py-12">
+      <div className="mx-auto max-w-4xl">
         <MedicalNav />
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+
+        <div className="mb-8 mt-6 text-center">
+          <h1 className="mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
             Book Your Appointment
           </h1>
-          <p className="text-lg text-gray-600">
+
+          <p className="text-base text-gray-600 sm:text-lg">
             Schedule your consultation with our expert team
           </p>
         </div>
 
-        <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+        <Card className="overflow-hidden border-0 bg-white/90 shadow-2xl backdrop-blur-sm">
+          <CardHeader className="rounded-t-lg bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white sm:p-8">
             <CardTitle className="flex items-center gap-3 text-xl">
               <Calendar className="h-6 w-6" />
               Appointment Details
             </CardTitle>
+
             <CardDescription className="text-blue-100">
-              Please fill in all required information to complete your booking
+              Please complete the form below to request
+              your appointment.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-8">
+
+          <CardContent className="p-5 sm:p-8">
             {submitStatus ? (
               <div
-                className={`rounded-lg p-6 mb-6 ${
-                  submitStatus.success ? "bg-green-50" : "bg-red-50"
+                role="status"
+                aria-live="polite"
+                className={`rounded-xl border p-5 sm:p-6 ${
+                  submitStatus.success
+                    ? "border-green-200 bg-green-50"
+                    : "border-red-200 bg-red-50"
                 }`}
               >
                 <div className="flex items-start gap-4">
                   {submitStatus.success ? (
-                    <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="mt-1 h-6 w-6 shrink-0 text-green-600" />
                   ) : (
-                    <XCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
+                    <XCircle className="mt-1 h-6 w-6 shrink-0 text-red-600" />
                   )}
-                  <div>
+
+                  <div className="min-w-0 flex-1">
                     <h3
-                      className={`text-lg font-medium ${
-                        submitStatus.success ? "text-green-800" : "text-red-800"
+                      className={`text-lg font-semibold ${
+                        submitStatus.success
+                          ? "text-green-800"
+                          : "text-red-800"
                       }`}
                     >
                       {submitStatus.success
                         ? "Booking Successful!"
                         : "Booking Failed"}
                     </h3>
+
                     <p
-                      className={`mt-1 ${
-                        submitStatus.success ? "text-green-700" : "text-red-700"
+                      className={`mt-2 break-words ${
+                        submitStatus.success
+                          ? "text-green-700"
+                          : "text-red-700"
                       }`}
                     >
                       {submitStatus.message}
                     </p>
-                    {submitStatus.success && submitStatus.bookingId && (
-                      <div className="mt-3 bg-white p-3 rounded border border-green-200">
-                        <p className="text-sm font-medium text-gray-700">
-                          Booking Reference:
-                        </p>
-                        <p className="font-mono text-sm mt-1 bg-gray-100 p-2 rounded">
-                          {submitStatus.bookingId}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          We have also sent a confirmation to your email address.
-                        </p>
-                      </div>
-                    )}
-                    <div className="mt-4">
-                      <Button
-                        onClick={() => setSubmitStatus(null)}
-                        className={`${
-                          submitStatus.success
-                            ? "bg-green-600 hover:bg-green-700"
-                            : "bg-red-600 hover:bg-red-700"
-                        }`}
-                      >
-                        {submitStatus.success
-                          ? "Book Another Appointment"
-                          : "Try Again"}
-                      </Button>
-                    </div>
+
+                    {submitStatus.success &&
+                      submitStatus.bookingId && (
+                        <div className="mt-4 rounded-lg border border-green-200 bg-white p-4">
+                          <p className="text-sm font-medium text-gray-700">
+                            Booking Reference
+                          </p>
+
+                          <p className="mt-2 break-all rounded bg-gray-100 p-3 font-mono text-sm">
+                            {submitStatus.bookingId}
+                          </p>
+
+                          <p className="mt-2 text-xs text-gray-500">
+                            Please save this reference for
+                            your records.
+                          </p>
+                        </div>
+                      )}
+
+                    <Button
+                      type="button"
+                      onClick={handleStatusReset}
+                      className={`mt-5 ${
+                        submitStatus.success
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-red-600 hover:bg-red-700"
+                      }`}
+                    >
+                      {submitStatus.success
+                        ? "Book Another Appointment"
+                        : "Try Again"}
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-10"
+              >
                 {/* Personal Information */}
-                <div className="space-y-6">
-                  <h3 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                <section className="space-y-6">
+                  <h2 className="border-b border-gray-200 pb-3 text-xl font-semibold text-gray-800">
                     Personal Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
+                  </h2>
+
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
                       <Label
                         htmlFor="fullName"
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-2"
                       >
                         <User className="h-4 w-4 text-blue-500" />
                         Full Name *
                       </Label>
+
                       <Input
                         id="fullName"
+                        autoComplete="name"
                         value={formData.fullName}
-                        onChange={(e) =>
-                          handleInputChange("fullName", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "fullName",
+                            event.target.value
+                          )
                         }
                         placeholder="Enter your full name"
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        className={INPUT_CLASS}
                         required
+                        maxLength={150}
                       />
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label
                         htmlFor="email"
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-2"
                       >
                         <Mail className="h-4 w-4 text-blue-500" />
                         Email Address *
                       </Label>
+
                       <Input
                         id="email"
                         type="email"
+                        autoComplete="email"
                         value={formData.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "email",
+                            event.target.value
+                          )
                         }
                         placeholder="Enter your email"
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        className={INPUT_CLASS}
                         required
+                        maxLength={254}
                       />
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label
                         htmlFor="phoneNumber"
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-2"
                       >
                         <Phone className="h-4 w-4 text-blue-500" />
                         Phone Number *
                       </Label>
+
                       <Input
                         id="phoneNumber"
+                        type="tel"
+                        autoComplete="tel"
                         value={formData.phoneNumber}
-                        onChange={(e) =>
-                          handleInputChange("phoneNumber", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "phoneNumber",
+                            event.target.value
+                          )
                         }
-                        placeholder="+1 (555) 123-4567"
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        placeholder="Enter your phone number"
+                        className={INPUT_CLASS}
                         required
+                        maxLength={30}
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="dateOfBirth"
-                        className="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
-                      >
+                    <div className="space-y-2">
+                      <Label htmlFor="dateOfBirth">
                         Date of Birth *
                       </Label>
+
                       <Input
                         id="dateOfBirth"
                         type="date"
+                        autoComplete="bday"
+                        max={getTodayLocalDate()}
                         value={formData.dateOfBirth}
-                        onChange={(e) =>
-                          handleInputChange("dateOfBirth", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "dateOfBirth",
+                            event.target.value
+                          )
                         }
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        className={INPUT_CLASS}
                         required
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium text-gray-700">
+                    <div className="space-y-2">
+                      <Label htmlFor="age">
+                        Age
+                      </Label>
+
+                      <Input
+                        id="age"
+                        type="number"
+                        min={0}
+                        max={150}
+                        step={1}
+                        value={formData.age ?? ""}
+                        onChange={(event) =>
+                          handleInputChange(
+                            "age",
+                            event.target.value
+                          )
+                        }
+                        placeholder="Enter age (optional)"
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">
                         Gender *
                       </Label>
+
                       <Select
                         value={formData.gender}
-                        onValueChange={(value: string) =>
-                          handleInputChange("gender", value)
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            "gender",
+                            value
+                          )
                         }
+                        required
                       >
-                        <SelectTrigger className="h-12 border-2 border-gray-200 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white">
-                          <SelectValue
-                            placeholder="Select your gender"
-                            className="text-gray-500"
-                          />
-                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        <SelectTrigger
+                          id="gender"
+                          className={INPUT_CLASS}
+                        >
+                          <SelectValue placeholder="Select your gender" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white border-2 border-gray-200 shadow-xl rounded-lg">
-                          <SelectItem
-                            value="male"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
+
+                        <SelectContent>
+                          <SelectItem value="male">
                             Male
                           </SelectItem>
-                          <SelectItem
-                            value="female"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
+                          <SelectItem value="female">
                             Female
                           </SelectItem>
-                          <SelectItem
-                            value="other"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
+                          <SelectItem value="other">
                             Other
                           </SelectItem>
-                          <SelectItem
-                            value="prefer-not-to-say"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
+                          <SelectItem value="prefer-not-to-say">
                             Prefer not to say
                           </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Service Type *
-                      </Label>
-                      <Select
-                        value={formData.serviceType}
-                        onValueChange={(value: string) =>
-                          handleInputChange("serviceType", value)
-                        }
-                      >
-                        <SelectTrigger className="h-12 border-2 border-gray-200 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white">
-                          <SelectValue
-                            placeholder="Choose your service"
-                            className="text-gray-500"
-                          />
-                          <ChevronDown className="h-4 w-4 text-gray-400" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-2 border-gray-200 shadow-xl rounded-lg">
-                          <SelectItem
-                            value="general-consultation"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                General Consultation
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                Basic health consultation
-                              </span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem
-                            value="travel-health"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">Travel Health</span>
-                              <span className="text-xs text-gray-500">
-                                Pre-travel health advice
-                              </span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem
-                            value="vaccination"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">Vaccination</span>
-                              <span className="text-xs text-gray-500">
-                                Immunization services
-                              </span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem
-                            value="health-checkup"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                Health Checkup
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                Comprehensive health screening
-                              </span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem
-                            value="specialist-referral"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                Specialist Referral
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                Referral to specialist care
-                              </span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                </div>
+                </section>
 
                 {/* Appointment Scheduling */}
-                <div className="space-y-6">
-                  <h3 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                <section className="space-y-6">
+                  <h2 className="border-b border-gray-200 pb-3 text-xl font-semibold text-gray-800">
                     Appointment Scheduling
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
+                  </h2>
+
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
                       <Label
                         htmlFor="appointmentDate"
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-2"
                       >
                         <Calendar className="h-4 w-4 text-blue-500" />
                         Preferred Date *
                       </Label>
+
                       <Input
                         id="appointmentDate"
                         type="date"
+                        min={getTodayLocalDate()}
                         value={formData.appointmentDate}
-                        onChange={(e) =>
-                          handleInputChange("appointmentDate", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "appointmentDate",
+                            event.target.value
+                          )
                         }
-                        min={new Date().toISOString().split("T")[0]}
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        className={INPUT_CLASS}
                         required
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="appointmentTime"
+                        className="flex items-center gap-2"
+                      >
                         <Clock className="h-4 w-4 text-blue-500" />
                         Preferred Time *
                       </Label>
+
                       <Select
                         value={formData.appointmentTime}
-                        onValueChange={(value: string) =>
-                          handleInputChange("appointmentTime", value)
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            "appointmentTime",
+                            value
+                          )
                         }
+                        required
                       >
-                        <SelectTrigger className="h-12 border-2 border-gray-200 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white">
+                        <SelectTrigger
+                          id="appointmentTime"
+                          className={INPUT_CLASS}
+                        >
                           <SelectValue placeholder="Select appointment time" />
-                          <ChevronDown className="h-4 w-4 text-gray-400" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white border-2 border-gray-200 shadow-xl rounded-lg">
-                          <SelectItem
-                            value="09:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>9:00 AM</span>
-                              <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                Available
-                              </span>
-                            </div>
+
+                        <SelectContent>
+                          <SelectItem value="09:00">
+                            9:00 AM
                           </SelectItem>
-                          <SelectItem
-                            value="10:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>10:00 AM</span>
-                              <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                Available
-                              </span>
-                            </div>
+                          <SelectItem value="10:00">
+                            10:00 AM
                           </SelectItem>
-                          <SelectItem
-                            value="11:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>11:00 AM</span>
-                              <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                                Limited
-                              </span>
-                            </div>
+                          <SelectItem value="11:00">
+                            11:00 AM
                           </SelectItem>
-                          <SelectItem
-                            value="14:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>2:00 PM</span>
-                              <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                Available
-                              </span>
-                            </div>
+                          <SelectItem value="14:00">
+                            2:00 PM
                           </SelectItem>
-                          <SelectItem
-                            value="15:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>3:00 PM</span>
-                              <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                Available
-                              </span>
-                            </div>
+                          <SelectItem value="15:00">
+                            3:00 PM
                           </SelectItem>
-                          <SelectItem
-                            value="16:00"
-                            className="hover:bg-blue-50 cursor-pointer py-3 px-4"
-                          >
-                            <div className="flex justify-between items-center w-full">
-                              <span>4:00 PM</span>
-                              <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                                Limited
-                              </span>
-                            </div>
+                          <SelectItem value="16:00">
+                            4:00 PM
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <p className="text-xs text-gray-500">
+                        The selected time is a preference.
+                        Availability must be confirmed by
+                        your booking system.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceType">
+                        Service Type *
+                      </Label>
+
+                      <Select
+                        value={formData.serviceType}
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            "serviceType",
+                            value
+                          )
+                        }
+                        required
+                      >
+                        <SelectTrigger
+                          id="serviceType"
+                          className={INPUT_CLASS}
+                        >
+                          <SelectValue placeholder="Choose your service" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="general-consultation">
+                            General Consultation
+                          </SelectItem>
+                          <SelectItem value="travel-health">
+                            Travel Health
+                          </SelectItem>
+                          <SelectItem value="vaccination">
+                            Vaccination
+                          </SelectItem>
+                          <SelectItem value="health-checkup">
+                            Health Checkup
+                          </SelectItem>
+                          <SelectItem value="specialist-referral">
+                            Specialist Referral
                           </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                </div>
 
-                {/* Optional Passport Information */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-semibold text-gray-800">
-                      Passport Information
-                    </h3>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                      Optional
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label
-                        htmlFor="passportNumber"
-                        className="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        htmlFor="doctor"
+                        className="flex items-center gap-2"
                       >
-                        Passport Number
+                        <Stethoscope className="h-4 w-4 text-blue-500" />
+                        Doctor
                       </Label>
+
                       <Input
-                        id="passportNumber"
-                        value={formData.passportNumber}
-                        onChange={(e) =>
-                          handleInputChange("passportNumber", e.target.value)
+                        id="doctor"
+                        value={formData.doctor}
+                        onChange={(event) =>
+                          handleInputChange(
+                            "doctor",
+                            event.target.value
+                          )
                         }
-                        placeholder="P1234567"
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        placeholder="Preferred doctor (optional)"
+                        className={INPUT_CLASS}
+                        maxLength={150}
                       />
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2 md:col-span-2">
                       <Label
-                        htmlFor="passportIssueDate"
-                        className="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                        htmlFor="department"
+                        className="flex items-center gap-2"
                       >
+                        <Building2 className="h-4 w-4 text-blue-500" />
+                        Department
+                      </Label>
+
+                      <Input
+                        id="department"
+                        value={formData.department}
+                        onChange={(event) =>
+                          handleInputChange(
+                            "department",
+                            event.target.value
+                          )
+                        }
+                        placeholder="Preferred department (optional)"
+                        className={INPUT_CLASS}
+                        maxLength={150}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Passport Information */}
+                <section className="space-y-6">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      Passport Information
+                    </h2>
+
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                      Optional
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="passportNumber"
+                        className="flex items-center gap-2"
+                      >
+                        <Hash className="h-4 w-4 text-blue-500" />
+                        Passport Number
+                      </Label>
+
+                      <Input
+                        id="passportNumber"
+                        autoComplete="off"
+                        value={formData.passportNumber}
+                        onChange={(event) =>
+                          handleInputChange(
+                            "passportNumber",
+                            event.target.value
+                          )
+                        }
+                        placeholder="Passport number"
+                        className={INPUT_CLASS}
+                        maxLength={50}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="passportIssueDate">
                         Issue Date
                       </Label>
+
                       <Input
                         id="passportIssueDate"
                         type="date"
                         value={formData.passportIssueDate}
-                        onChange={(e) =>
-                          handleInputChange("passportIssueDate", e.target.value)
+                        onChange={(event) =>
+                          handleInputChange(
+                            "passportIssueDate",
+                            event.target.value
+                          )
                         }
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        max={getTodayLocalDate()}
+                        className={INPUT_CLASS}
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="passportExpiryDate"
-                        className="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
-                      >
+                    <div className="space-y-2">
+                      <Label htmlFor="passportExpiryDate">
                         Expiry Date
                       </Label>
+
                       <Input
                         id="passportExpiryDate"
                         type="date"
                         value={formData.passportExpiryDate}
-                        onChange={(e) =>
+                        onChange={(event) =>
                           handleInputChange(
                             "passportExpiryDate",
-                            e.target.value
+                            event.target.value
                           )
                         }
-                        className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                        min={
+                          formData.passportIssueDate ||
+                          undefined
+                        }
+                        className={INPUT_CLASS}
                       />
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* Additional Message */}
-                <div className="space-y-3">
+                <section className="space-y-3">
                   <Label
                     htmlFor="message"
-                    className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-2"
                   >
                     <FileText className="h-4 w-4 text-blue-500" />
                     Additional Message
                   </Label>
+
                   <Textarea
                     id="message"
                     value={formData.message}
-                    onChange={(e) =>
-                      handleInputChange("message", e.target.value)
+                    onChange={(event) =>
+                      handleInputChange(
+                        "message",
+                        event.target.value
+                      )
                     }
-                    placeholder="Please describe your symptoms, concerns, or any additional information..."
+                    placeholder="Describe your concerns or provide any additional information..."
                     rows={4}
-                    className="border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-none"
+                    maxLength={2000}
+                    className="resize-y border-2 border-gray-200 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
-                </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Processing..." : "Book Appointment"}
-                </Button>
+                  <p className="text-right text-xs text-gray-500">
+                    {formData.message.length}/2000
+                  </p>
+                </section>
+
+                {/* Submit */}
+                <div className="border-t border-gray-200 pt-6">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="h-14 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold shadow-lg transition-all hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
+                  >
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-3">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Submitting Your Booking...
+                      </span>
+                    ) : (
+                      "Book Appointment"
+                    )}
+                  </Button>
+
+                  <p className="mt-3 text-center text-xs text-gray-500">
+                    Please review your details before
+                    submitting your appointment request.
+                  </p>
+                </div>
               </form>
             )}
           </CardContent>
         </Card>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Need help? Please contact our medical team for
+          assistance with your appointment.
+        </p>
       </div>
-    </div>
-    </div>
     </div>
   );
 }
