@@ -1,10 +1,10 @@
-import EnhancedBookingPage from "@/components/Bookings/ui/BookingPage";
+import  BookingDetails from "@/components/Bookings/ui/BookingPage";
 import React from "react";
 
 const page = () => {
   return (
     <>
-      <EnhancedBookingPage />
+      < BookingDetails />
     </>
   );
 };
